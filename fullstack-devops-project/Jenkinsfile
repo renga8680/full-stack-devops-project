@@ -44,7 +44,7 @@ pipeline {
         stage('Verify Deployment') {
             steps {
                 sh 'sleep 10'
-                sh 'curl -f http://localhost:5000/api/health || exit 1'
+                sh 'curl -f http://20.92.232.25:5000/api/health || exit 1'
             }
         }
     }
