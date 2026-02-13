@@ -11,7 +11,7 @@ pipeline {
         
         stage('Build Backend') {
             steps {
-                dir('backend') {
+                dir('fullstack-devops-project/backend') {
                     sh 'echo "Backend ready"'
                 }
             }
@@ -19,7 +19,7 @@ pipeline {
         
         stage('Build Frontend') {
             steps {
-                dir('frontend') {
+                dir('fullstack-devops-project/frontend') {
                     sh 'echo "Frontend ready"'
                 }
             }
@@ -27,13 +27,17 @@ pipeline {
         
         stage('Build Docker Images') {
             steps {
-                sh 'docker-compose build'
+                dir('fullstack-devops-project') {
+                    sh 'docker compose build'
+                }
             }
         }
         
         stage('Deploy Application') {
             steps {
-                sh 'docker-compose up -d'
+                dir('fullstack-devops-project') {
+                    sh 'docker compose up -d'
+                }
             }
         }
         
