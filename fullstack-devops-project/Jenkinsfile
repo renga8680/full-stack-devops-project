@@ -28,7 +28,7 @@ pipeline {
         stage('Build Docker Images') {
             steps {
                 dir('fullstack-devops-project') {
-                    sh 'docker compose build'
+                    sh 'docker-compose build'
                 }
             }
         }
@@ -36,7 +36,7 @@ pipeline {
         stage('Deploy Application') {
             steps {
                 dir('fullstack-devops-project') {
-                    sh 'docker compose up -d'
+                    sh 'docker-compose up -d'
                 }
             }
         }
