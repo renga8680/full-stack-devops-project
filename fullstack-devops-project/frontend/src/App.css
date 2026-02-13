@@ -1,0 +1,102 @@
+.App {
+  text-align: center;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.App-header {
+  padding: 40px 20px;
+  color: white;
+}
+
+.App-header h1 {
+  font-size: 3em;
+  margin: 0;
+  text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+}
+
+.App-header p {
+  font-size: 1.1em;
+  margin-top: 10px;
+}
+
+.health-status {
+  background: rgba(255, 255, 255, 0.2);
+  padding: 15px;
+  border-radius: 10px;
+  margin-top: 20px;
+  display: inline-block;
+  backdrop-filter: blur(10px);
+}
+
+.App-main {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 40px 20px;
+}
+
+.add-user, .users-list {
+  background: white;
+  border-radius: 15px;
+  padding: 30px;
+  margin-bottom: 30px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+.add-user h2, .users-list h2 {
+  color: #667eea;
+  margin-top: 0;
+}
+
+.add-user form {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.add-user input {
+  padding: 12px;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 16px;
+  transition: border-color 0.3s;
+}
+
+.add-user input:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
+.add-user button {
+  padding: 12px;
+  background: #667eea;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.add-user button:hover {
+  background: #764ba2;
+}
+
+.users-list ul {
+  list-style: none;
+  padding: 0;
+}
+
+.users-list li {
+  padding: 15px;
+  background: #f5f5f5;
+  margin-bottom: 10px;
+  border-radius: 8px;
+  text-align: left;
+  transition: transform 0.2s;
+}
+
+.users-list li:hover {
+  transform: translateX(5px);
+  background: #e8e8e8;
+}

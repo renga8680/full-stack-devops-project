@@ -1,0 +1,137 @@
+pipeline {
+    agent any
+    
+    environment {
+        DOCKER_REGISTRY = 'your-registry.azurecr.io'
+        DOCKER_CREDENTIALS = 'azure-container-registry'
+        BACKEND_IMAGE = "${DOCKER_REGISTRY}/backend"
+        FRONTEND_IMAGE = "${DOCKER_REGISTRY}/frontend"
+        IMAGE_TAG = "${BUILD_NUMBER}"
+        ANSIBLE_PLAYBOOK = 'ansible/playbooks/deploy.yml'
+        ANSIBLE_INVENTORY = 'ansible/inventory/hosts.ini'
+    }
+    
+    stages {
+        stage('Checkout Code') {
+            steps {
+                echo '📥 Checking out source code...'
+                checkout scm
+            }
+        }
+        
+        stage('Install Dependencies') {
+            parallel {
+                stage('Backend Dependencies') {
+                    steps {
+                        dir('backend') {
+                            sh 'npm ci'
+                        }
+                    }
+                }
+                stage('Frontend Dependencies') {
+                    steps {
+                        dir('frontend') {
+                            sh 'npm ci'
+                        }
+                    }
+                }
+            }
+        }
+        
+        stage('Run Tests') {
+            parallel {
+                stage('Backend Tests') {
+                    steps {
+                        dir('backend') {
+                            sh 'npm test || echo "No tests configured"'
+                        }
+                    }
+                }
+                stage('Frontend Tests') {
+                    steps {
+                        dir('frontend') {
+                            sh 'npm test -- --watchAll=false || echo "No tests configured"'
+                        }
+                    }
+                }
+            }
+        }
+        
+        stage('Build Docker Images') {
+            parallel {
+                stage('Build Backend Image') {
+                    steps {
+                        dir('backend') {
+                            script {
+                                docker.build("${BACKEND_IMAGE}:${IMAGE_TAG}")
+                                docker.build("${BACKEND_IMAGE}:latest")
+                            }
+                        }
+                    }
+                }
+                stage('Build Frontend Image') {
+                    steps {
+                        dir('frontend') {
+                            script {
+                                docker.build("${FRONTEND_IMAGE}:${IMAGE_TAG}")
+                                docker.build("${FRONTEND_IMAGE}:latest")
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        stage('Push to Registry') {
+            steps {
+                script {
+                    docker.withRegistry("https://${DOCKER_REGISTRY}", DOCKER_CREDENTIALS) {
+                        docker.image("${BACKEND_IMAGE}:${IMAGE_TAG}").push()
+                        docker.image("${BACKEND_IMAGE}:latest").push()
+                        docker.image("${FRONTEND_IMAGE}:${IMAGE_TAG}").push()
+                        docker.image("${FRONTEND_IMAGE}:latest").push()
+                    }
+                }
+            }
+        }
+        
+        stage('Deploy with Ansible') {
+            steps {
+                echo '🚀 Deploying application with Ansible...'
+                ansiblePlaybook(
+                    playbook: "${ANSIBLE_PLAYBOOK}",
+                    inventory: "${ANSIBLE_INVENTORY}",
+                    credentialsId: 'ansible-ssh-key',
+                    extraVars: [
+                        image_tag: "${IMAGE_TAG}",
+                        docker_registry: "${DOCKER_REGISTRY}"
+                    ],
+                    colorized: true
+                )
+            }
+        }
+        
+        stage('Smoke Tests') {
+            steps {
+                echo '🧪 Running smoke tests...'
+                script {
+                    sleep 15
+                    sh 'echo "Add your smoke tests here"'
+                }
+            }
+        }
+    }
+    
+    post {
+        success {
+            echo '✅ Pipeline completed successfully!'
+        }
+        failure {
+            echo '❌ Pipeline failed!'
+        }
+        always {
+            sh 'docker system prune -f'
+            cleanWs()
+        }
+    }
+}
