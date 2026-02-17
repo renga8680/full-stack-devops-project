@@ -14,7 +14,7 @@ pipeline {
             steps {
                 echo '🔍 Checking tools...'
                 sh 'docker --version'
-                sh 'docker compose version'
+                sh 'docker-compose --version'
             }
         }
 
@@ -22,7 +22,7 @@ pipeline {
             steps {
                 echo '🔨 Building Docker images...'
                 dir('fullstack-devops-project') {
-                    sh 'docker compose build'
+                    sh 'docker-compose build'
                 }
             }
         }
@@ -31,7 +31,7 @@ pipeline {
             steps {
                 echo '🛑 Stopping old containers...'
                 dir('fullstack-devops-project') {
-                    sh 'docker compose down || true'
+                    sh 'docker-compose down || true'
                 }
             }
         }
@@ -40,7 +40,7 @@ pipeline {
             steps {
                 echo '🚀 Starting application...'
                 dir('fullstack-devops-project') {
-                    sh 'docker compose up -d'
+                    sh 'docker-compose up -d'
                 }
             }
         }
@@ -59,7 +59,7 @@ pipeline {
         failure {
             echo '❌ Deployment failed!'
             dir('fullstack-devops-project') {
-                sh 'docker compose logs || true'
+                sh 'docker-compose logs || true'
             }
         }
         always {
