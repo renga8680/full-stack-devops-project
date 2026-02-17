@@ -12,7 +12,7 @@ pipeline {
 
         stage('Verify Tools') {
             steps {
-                echo '🔍 Checking tools...'
+                echo '🔍 Checking Docker tools...'
                 sh 'docker --version'
                 sh 'docker-compose --version'
             }
@@ -36,9 +36,9 @@ pipeline {
             }
         }
 
-        stage('Deploy') {
+        stage('Deploy Application') {
             steps {
-                echo '🚀 Starting application...'
+                echo '🚀 Starting containers...'
                 dir('fullstack-devops-project') {
                     sh 'docker-compose up -d'
                 }
@@ -47,25 +47,30 @@ pipeline {
 
         stage('Verify Backend Health') {
             steps {
-                echo '⏳ Waiting for backend to become healthy...'
-                sh '''
-                for i in {1..12}; do
-                    if curl -f http://localhost:5000/api/health; then
-                        echo "✅ Backend is up and healthy!"
-                        exit 0
-                    fi
-                    echo "⌛ Waiting for backend..."
-                    sleep 5
-                done
+                echo '⏳ Checking backend health inside container...'
+                dir('fullstack-devops-project') {
+                    sh '''
+                    for i in {1..12}; do
+                        if docker-compose exec -T backend wget --quiet --spider http://localhost:5000/api/health; then
+                            echo "✅ Backend is healthy!"
+                            exit 0
+                        fi
+                        echo "⌛ Waiting for backend..."
+                        sleep 5
+                    done
 
-                echo "❌ Backend failed to start in time"
-                exit 1
-                '''
+                    echo "❌ Backend failed to start in time"
+                    exit 1
+                    '''
+                }
             }
         }
     }
 
     post {
+        success {
+            echo '🎉 Deployment Successful!'
+        }
         failure {
             echo '❌ Deployment failed!'
             dir('fullstack-devops-project') {
@@ -73,6 +78,7 @@ pipeline {
             }
         }
         always {
+            echo '🧹 Cleaning unused Docker resources...'
             sh 'docker system prune -f || true'
         }
     }
