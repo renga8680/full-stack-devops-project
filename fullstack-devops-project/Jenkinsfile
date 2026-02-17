@@ -1,60 +1,68 @@
 pipeline {
     agent any
-    
+
     stages {
+
         stage('Checkout Code') {
             steps {
-                echo '📥 Checking out source code...'
+                echo '📥 Pulling code from GitHub...'
                 checkout scm
             }
         }
-        
-        stage('Build Backend') {
+
+        stage('Verify Tools') {
             steps {
-                dir('fullstack-devops-project/backend') {
-                    sh 'echo "Backend ready"'
-                }
+                echo '🔍 Checking tools...'
+                sh 'docker --version'
+                sh 'docker-compose --version'
             }
         }
-        
-        stage('Build Frontend') {
+
+        stage('Build Images') {
             steps {
-                dir('fullstack-devops-project/frontend') {
-                    sh 'echo "Frontend ready"'
-                }
+                echo '🔨 Building Docker images...'
+                sh 'docker-compose build'
             }
         }
-        
-        stage('Build Docker Images') {
+
+        stage('Stop Old Containers') {
             steps {
-                dir('fullstack-devops-project') {
-                    sh 'docker-compose build'
-                }
+                echo '🛑 Stopping old containers...'
+                sh 'docker-compose down || true'
             }
         }
-        
-        stage('Deploy Application') {
+
+        stage('Deploy') {
             steps {
-                dir('fullstack-devops-project') {
-                    sh 'docker-compose up -d'
-                }
+                echo '🚀 Starting application...'
+                sh 'docker-compose up -d'
             }
         }
-        
-        stage('Verify Deployment') {
+
+        stage('Verify') {
             steps {
-                sh 'sleep 10'
-                sh 'curl -f http://20.92.232.25:5000/api/health || exit 1'
+                echo '✅ Verifying...'
+                sh 'sleep 15'
+                sh 'docker ps'
+                sh 'curl -f http://localhost:5000/api/health || exit 1'
             }
         }
     }
-    
+
     post {
         success {
-            echo '✅ Pipeline completed successfully!'
+            echo '''
+            ✅ DEPLOYMENT SUCCESSFUL!
+            Frontend : http://20.211.96.17
+            Backend  : http://20.211.96.17:5000/api/health
+            '''
         }
         failure {
-            echo '❌ Pipeline failed!'
+            echo '❌ Deployment failed!'
+            sh 'docker-compose logs || true'
+        }
+        always {
+            sh 'docker system prune -f || true'
         }
     }
 }
