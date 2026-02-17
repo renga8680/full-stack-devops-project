@@ -50,6 +50,13 @@ pipeline {
     }
 
     post {
+        success {
+            echo '''
+            ✅ DEPLOYMENT SUCCESSFUL!
+            Frontend : http://20.211.96.17
+            Backend  : http://20.211.96.17:5000/api/health
+            '''
+        }
         failure {
             echo '❌ Deployment failed!'
             sh 'docker-compose logs || true'
