@@ -80,6 +80,7 @@ function App() {
               required
             />
             <button type="submit">Add User</button>
+            <button type="submit">Add User</button>
           </form>
         </section>
 
