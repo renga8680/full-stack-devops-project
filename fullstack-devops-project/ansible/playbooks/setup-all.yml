@@ -1,0 +1,142 @@
+---
+- name: Setup DevOps Environment
+  hosts: devops
+  become: yes
+
+  tasks:
+
+    # ----------------------------------------
+    # PART 1: System Update
+    # ----------------------------------------
+    - name: Update system
+      apt:
+        update_cache: yes
+
+    - name: Install basic tools
+      apt:
+        name:
+          - curl
+          - wget
+          - git
+          - ca-certificates
+          - gnupg
+        state: present
+
+    # ----------------------------------------
+    # PART 2: Install Docker
+    # ----------------------------------------
+    - name: Install Docker
+      shell: curl -fsSL https://get.docker.com | sh
+      args:
+        executable: /bin/bash
+        creates: /usr/bin/docker
+
+    - name: Start Docker
+      systemd:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Add azureuser to docker group
+      user:
+        name: azureuser
+        groups: docker
+        append: yes
+
+    - name: Verify Docker
+      command: docker --version
+      register: docker_ver
+
+    - name: Show Docker version
+      debug:
+        msg: "✅ {{ docker_ver.stdout }}"
+
+    # ----------------------------------------
+    # PART 3: Install Docker Compose
+    # ----------------------------------------
+    - name: Install Docker Compose
+      get_url:
+        url: "https://github.com/docker/compose/releases/download/v2.24.0/docker-compose-linux-x86_64"
+        dest: /usr/local/bin/docker-compose
+        mode: '0755'
+
+    - name: Verify Docker Compose
+      command: docker-compose --version
+      register: compose_ver
+
+    - name: Show Docker Compose version
+      debug:
+        msg: "✅ {{ compose_ver.stdout }}"
+
+    # ----------------------------------------
+    # PART 4: Run Jenkins in Docker
+    # ----------------------------------------
+    - name: Remove old Jenkins container
+      shell: |
+        docker stop jenkins 2>/dev/null || true
+        docker rm jenkins 2>/dev/null || true
+      args:
+        executable: /bin/bash
+
+    - name: Start Jenkins container
+      shell: |
+        docker run -d \
+          --name jenkins \
+          -p 8080:8080 \
+          -p 50000:50000 \
+          -v jenkins_home:/var/jenkins_home \
+          -v /var/run/docker.sock:/var/run/docker.sock \
+          --restart unless-stopped \
+          jenkins/jenkins:lts
+      args:
+        executable: /bin/bash
+
+    - name: Wait for Jenkins to start
+      wait_for:
+        timeout: 60
+
+    - name: Install docker-compose inside Jenkins
+      shell: |
+        docker exec -u root jenkins bash -c "
+          curl -L https://github.com/docker/compose/releases/download/v2.24.0/docker-compose-linux-x86_64 -o /usr/local/bin/docker-compose &&
+          chmod +x /usr/local/bin/docker-compose
+        "
+      args:
+        executable: /bin/bash
+
+    - name: Get Jenkins password
+      shell: docker exec jenkins cat /var/jenkins_home/secrets/initialAdminPassword
+      register: jenkins_password
+      retries: 5
+      delay: 15
+      until: jenkins_password.rc == 0
+
+    # ----------------------------------------
+    # PART 5: Create App Directory
+    # ----------------------------------------
+    - name: Create app directory
+      file:
+        path: /opt/fullstack-app
+        state: directory
+        mode: '0755'
+        owner: azureuser
+
+    # ----------------------------------------
+    # PART 6: Final Summary
+    # ----------------------------------------
+    - name: Final Summary
+      debug:
+        msg:
+          - "============================================"
+          - "✅ ALL DONE!"
+          - "============================================"
+          - "Docker        : {{ docker_ver.stdout }}"
+          - "Docker Compose: {{ compose_ver.stdout }}"
+          - "Jenkins URL   : http://20.211.96.17:8080"
+          - "Jenkins PWD   : {{ jenkins_password.stdout }}"
+          - "============================================"
+          - "NEXT: Open Jenkins URL in browser"
+          - "NEXT: Paste password to login"
+          - "NEXT: Install suggested plugins"
+          - "NEXT: Create pipeline job"
+          - "============================================"
