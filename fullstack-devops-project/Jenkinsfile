@@ -19,7 +19,7 @@ pipeline {
             steps {
                 echo '🔍 Checking Docker tools...'
                 sh 'docker --version'
-                sh 'docker compose version'
+                sh 'docker-compose --version'
             }
         }
 
@@ -27,7 +27,7 @@ pipeline {
             steps {
                 echo '🔨 Building Docker images...'
                 dir("${PROJECT_DIR}") {
-                    sh 'docker compose build --no-cache'
+                    sh 'docker-compose build --no-cache'
                 }
             }
         }
@@ -36,7 +36,7 @@ pipeline {
             steps {
                 echo '🛑 Stopping old containers (if any)...'
                 dir("${PROJECT_DIR}") {
-                    sh 'docker compose down || true'
+                    sh 'docker-compose down || true'
                 }
             }
         }
@@ -45,7 +45,7 @@ pipeline {
             steps {
                 echo '🚀 Starting containers...'
                 dir("${PROJECT_DIR}") {
-                    sh 'docker compose up -d'
+                    sh 'docker-compose up -d'
                 }
             }
         }
@@ -93,7 +93,7 @@ pipeline {
         failure {
             echo '❌ Deployment failed! Displaying container logs...'
             dir("${PROJECT_DIR}") {
-                sh 'docker compose logs || true'
+                sh 'docker-compose logs || true'
             }
         }
 
