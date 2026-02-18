@@ -5,8 +5,8 @@
 
   vars:
     app_dir: /opt/fullstack-app
-    frontend_dir: frontend
-    backend_dir: backend
+    frontend_dir: /home/azureuser/full-stack-devops-project/fullstack-devops-project/frontend
+    backend_dir: /home/azureuser/full-stack-devops-project/fullstack-devops-project/backend
 
   tasks:
 
@@ -161,41 +161,41 @@
     # PART 9: Copy Frontend & Backend Code to VM
     # ----------------------------------------
     - name: Copy frontend code to VM
-      copy:
+      synchronize:
         src: "{{ frontend_dir }}/"
         dest: "{{ app_dir }}/frontend/"
-        owner: azureuser
-        mode: '0755'
+        recursive: yes
 
     - name: Copy backend code to VM
-      copy:
+      synchronize:
         src: "{{ backend_dir }}/"
         dest: "{{ app_dir }}/backend/"
-        owner: azureuser
-        mode: '0755'
+        recursive: yes
 
     # ----------------------------------------
     # PART 10: Build & Run Frontend/Backend Containers
     # ----------------------------------------
     - name: Build backend Docker image
-      shell: docker build -t fullstack-backend ./backend
+      shell: docker build -t fullstack-backend .
       args:
-        chdir: "{{ app_dir }}"
+        chdir: "{{ app_dir }}/backend"
+        executable: /bin/bash
 
     - name: Build frontend Docker image
-      shell: docker build -t fullstack-frontend ./frontend
+      shell: docker build -t fullstack-frontend .
       args:
-        chdir: "{{ app_dir }}"
+        chdir: "{{ app_dir }}/frontend"
+        executable: /bin/bash
 
     - name: Run backend container
       shell: docker run -d --name backend -p 5000:5000 fullstack-backend
       args:
-        chdir: "{{ app_dir }}"
+        executable: /bin/bash
 
     - name: Run frontend container
       shell: docker run -d --name frontend -p 3000:3000 fullstack-frontend
       args:
-        chdir: "{{ app_dir }}"
+        executable: /bin/bash
 
     # ----------------------------------------
     # PART 11: Final Summary
