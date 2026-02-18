@@ -3,6 +3,11 @@
   hosts: devops
   become: yes
 
+  vars:
+    app_dir: /opt/fullstack-app
+    frontend_dir: frontend
+    backend_dir: backend
+
   tasks:
 
     # ----------------------------------------
@@ -96,7 +101,7 @@
         timeout: 60
 
     # ----------------------------------------
-    # PART 5: Install Docker INSIDE Jenkins Container
+    # PART 5: Install Docker & Compose INSIDE Jenkins
     # ----------------------------------------
     - name: Install Docker CLI inside Jenkins container
       shell: |
@@ -107,17 +112,6 @@
       args:
         executable: /bin/bash
 
-    - name: Verify Docker inside Jenkins
-      shell: docker exec jenkins docker --version
-      register: jenkins_docker_ver
-
-    - name: Show Docker version inside Jenkins
-      debug:
-        msg: "✅ Jenkins Docker: {{ jenkins_docker_ver.stdout }}"
-
-    # ----------------------------------------
-    # PART 6: Install Docker Compose INSIDE Jenkins Container
-    # ----------------------------------------
     - name: Install Docker Compose inside Jenkins container
       shell: |
         docker exec -u root jenkins bash -c "
@@ -127,16 +121,8 @@
       args:
         executable: /bin/bash
 
-    - name: Verify Docker Compose inside Jenkins
-      shell: docker exec jenkins docker-compose --version
-      register: jenkins_compose_ver
-
-    - name: Show Docker Compose version inside Jenkins
-      debug:
-        msg: "✅ Jenkins Docker Compose: {{ jenkins_compose_ver.stdout }}"
-
     # ----------------------------------------
-    # PART 7: Fix Docker Socket Permissions
+    # PART 6: Fix Docker Socket Permissions
     # ----------------------------------------
     - name: Fix Docker socket permissions
       file:
@@ -152,7 +138,7 @@
         msg: "✅ Jenkins can access Docker!"
 
     # ----------------------------------------
-    # PART 8: Get Jenkins Password
+    # PART 7: Get Jenkins Password
     # ----------------------------------------
     - name: Get Jenkins password
       shell: docker exec jenkins cat /var/jenkins_home/secrets/initialAdminPassword
@@ -162,17 +148,57 @@
       until: jenkins_password.rc == 0
 
     # ----------------------------------------
-    # PART 9: Create App Directory
+    # PART 8: Create App Directory
     # ----------------------------------------
     - name: Create app directory
       file:
-        path: /opt/fullstack-app
+        path: "{{ app_dir }}"
         state: directory
         mode: '0755'
         owner: azureuser
 
     # ----------------------------------------
-    # PART 10: Final Summary
+    # PART 9: Copy Frontend & Backend Code to VM
+    # ----------------------------------------
+    - name: Copy frontend code to VM
+      copy:
+        src: "{{ frontend_dir }}/"
+        dest: "{{ app_dir }}/frontend/"
+        owner: azureuser
+        mode: '0755'
+
+    - name: Copy backend code to VM
+      copy:
+        src: "{{ backend_dir }}/"
+        dest: "{{ app_dir }}/backend/"
+        owner: azureuser
+        mode: '0755'
+
+    # ----------------------------------------
+    # PART 10: Build & Run Frontend/Backend Containers
+    # ----------------------------------------
+    - name: Build backend Docker image
+      shell: docker build -t fullstack-backend ./backend
+      args:
+        chdir: "{{ app_dir }}"
+
+    - name: Build frontend Docker image
+      shell: docker build -t fullstack-frontend ./frontend
+      args:
+        chdir: "{{ app_dir }}"
+
+    - name: Run backend container
+      shell: docker run -d --name backend -p 5000:5000 fullstack-backend
+      args:
+        chdir: "{{ app_dir }}"
+
+    - name: Run frontend container
+      shell: docker run -d --name frontend -p 3000:3000 fullstack-frontend
+      args:
+        chdir: "{{ app_dir }}"
+
+    # ----------------------------------------
+    # PART 11: Final Summary
     # ----------------------------------------
     - name: Final Summary
       debug:
@@ -182,11 +208,11 @@
           ============================================
           VM Docker           : {{ docker_ver.stdout }}
           VM Docker Compose   : {{ compose_ver.stdout }}
-          Jenkins Docker      : {{ jenkins_docker_ver.stdout }}
-          Jenkins Docker Compose: {{ jenkins_compose_ver.stdout }}
+          Jenkins Docker      : {{ jenkins_docker_test.stdout }}
           Jenkins URL         : http://{{ ansible_host }}:8080
           Jenkins Password    : {{ jenkins_password.stdout }}
           ============================================
           ✅ Jenkins can run docker commands!
-          ✅ Jenkins can run docker-compose commands!
+          ✅ Frontend container is running on port 3000
+          ✅ Backend container is running on port 5000
           ============================================
