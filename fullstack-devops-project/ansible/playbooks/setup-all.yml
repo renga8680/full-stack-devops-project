@@ -28,7 +28,7 @@
         state: present
 
     # ----------------------------------------
-    # PART 2: Install Docker on VM
+    # PART 2: Install Docker
     # ----------------------------------------
     - name: Install Docker
       shell: curl -fsSL https://get.docker.com | sh
@@ -57,15 +57,15 @@
         msg: "✅ {{ docker_ver.stdout }}"
 
     # ----------------------------------------
-    # PART 3: Install Docker Compose on VM
+    # PART 3: Install Docker Compose
     # ----------------------------------------
-    - name: Install Docker Compose on VM
+    - name: Install Docker Compose
       get_url:
         url: "https://github.com/docker/compose/releases/download/v2.24.0/docker-compose-linux-x86_64"
         dest: /usr/local/bin/docker-compose
         mode: '0755'
 
-    - name: Verify Docker Compose on VM
+    - name: Verify Docker Compose
       command: docker-compose --version
       register: compose_ver
 
@@ -74,12 +74,12 @@
         msg: "✅ {{ compose_ver.stdout }}"
 
     # ----------------------------------------
-    # PART 4: Run Jenkins in Docker
+    # PART 4: Run Jenkins
     # ----------------------------------------
     - name: Remove old Jenkins container
       shell: |
-        docker stop jenkins 2>/dev/null || true
-        docker rm jenkins 2>/dev/null || true
+        docker stop jenkins || true
+        docker rm jenkins || true
       args:
         executable: /bin/bash
 
@@ -96,44 +96,43 @@
       args:
         executable: /bin/bash
 
-    - name: Wait for Jenkins to start
+    - name: Wait for Jenkins
       wait_for:
         timeout: 60
 
     # ----------------------------------------
-    # PART 5: Install Docker & Compose INSIDE Jenkins
+    # PART 5: Install Docker inside Jenkins
     # ----------------------------------------
-    - name: Install Docker CLI inside Jenkins container
+    - name: Install Docker CLI inside Jenkins
       shell: |
         docker exec -u root jenkins bash -c "
-          apt-get update &&
-          apt-get install -y docker.io
-        "
+        apt-get update &&
+        apt-get install -y docker.io"
       args:
         executable: /bin/bash
 
-    - name: Install Docker Compose inside Jenkins container
+    - name: Install Docker Compose inside Jenkins
       shell: |
         docker exec -u root jenkins bash -c "
-          curl -L https://github.com/docker/compose/releases/download/v2.24.0/docker-compose-linux-x86_64 -o /usr/local/bin/docker-compose &&
-          chmod +x /usr/local/bin/docker-compose
-        "
+        curl -L https://github.com/docker/compose/releases/download/v2.24.0/docker-compose-linux-x86_64 \
+        -o /usr/local/bin/docker-compose &&
+        chmod +x /usr/local/bin/docker-compose"
       args:
         executable: /bin/bash
 
     # ----------------------------------------
-    # PART 6: Fix Docker Socket Permissions
+    # PART 6: Fix Docker Permissions
     # ----------------------------------------
     - name: Fix Docker socket permissions
       file:
         path: /var/run/docker.sock
         mode: '0666'
 
-    - name: Verify Jenkins can access Docker
+    - name: Verify Jenkins Docker access
       shell: docker exec jenkins docker ps
       register: jenkins_docker_test
 
-    - name: Show Docker access test
+    - name: Show Jenkins Docker access
       debug:
         msg: "✅ Jenkins can access Docker!"
 
@@ -144,7 +143,7 @@
       shell: docker exec jenkins cat /var/jenkins_home/secrets/initialAdminPassword
       register: jenkins_password
       retries: 5
-      delay: 15
+      delay: 10
       until: jenkins_password.rc == 0
 
     # ----------------------------------------
@@ -154,51 +153,91 @@
       file:
         path: "{{ app_dir }}"
         state: directory
-        mode: '0755'
         owner: azureuser
+        mode: '0755'
 
     # ----------------------------------------
-    # PART 9: Copy Frontend & Backend Code to VM
+    # PART 9: Copy Code
     # ----------------------------------------
-    - name: Copy frontend code to VM
+    - name: Copy frontend code
       synchronize:
         src: "{{ frontend_dir }}/"
         dest: "{{ app_dir }}/frontend/"
         recursive: yes
 
-    - name: Copy backend code to VM
+    - name: Copy backend code
       synchronize:
         src: "{{ backend_dir }}/"
         dest: "{{ app_dir }}/backend/"
         recursive: yes
 
     # ----------------------------------------
-    # PART 10: Build & Run Frontend/Backend Containers
+    # PART 10: Create Docker Network
     # ----------------------------------------
-    - name: Build backend Docker image
+    - name: Create docker network
+      shell: docker network create app-network || true
+      args:
+        executable: /bin/bash
+
+    # ----------------------------------------
+    # PART 11: Remove old containers
+    # ----------------------------------------
+    - name: Remove old backend container
+      shell: |
+        docker stop backend || true
+        docker rm backend || true
+      args:
+        executable: /bin/bash
+
+    - name: Remove old frontend container
+      shell: |
+        docker stop frontend || true
+        docker rm frontend || true
+      args:
+        executable: /bin/bash
+
+    # ----------------------------------------
+    # PART 12: Build Images
+    # ----------------------------------------
+    - name: Build backend image
       shell: docker build -t fullstack-backend .
       args:
         chdir: "{{ app_dir }}/backend"
         executable: /bin/bash
 
-    - name: Build frontend Docker image
+    - name: Build frontend image
       shell: docker build -t fullstack-frontend .
       args:
         chdir: "{{ app_dir }}/frontend"
         executable: /bin/bash
 
+    # ----------------------------------------
+    # PART 13: Run Containers
+    # ----------------------------------------
     - name: Run backend container
-      shell: docker run -d --name backend -p 5000:5000 fullstack-backend
+      shell: |
+        docker run -d \
+        --name backend \
+        --network app-network \
+        -p 5000:5000 \
+        --restart unless-stopped \
+        fullstack-backend
       args:
         executable: /bin/bash
 
     - name: Run frontend container
-      shell: docker run -d --name frontend -p 3000:3000 fullstack-frontend
+      shell: |
+        docker run -d \
+        --name frontend \
+        --network app-network \
+        -p 80:80 \
+        --restart unless-stopped \
+        fullstack-frontend
       args:
         executable: /bin/bash
 
     # ----------------------------------------
-    # PART 11: Final Summary
+    # PART 14: Final Summary
     # ----------------------------------------
     - name: Final Summary
       debug:
@@ -206,13 +245,14 @@
           ============================================
           ✅ SETUP COMPLETE!
           ============================================
-          VM Docker           : {{ docker_ver.stdout }}
-          VM Docker Compose   : {{ compose_ver.stdout }}
-          Jenkins Docker      : {{ jenkins_docker_test.stdout }}
-          Jenkins URL         : http://{{ ansible_host }}:8080
-          Jenkins Password    : {{ jenkins_password.stdout }}
+          Docker Version        : {{ docker_ver.stdout }}
+          Docker Compose       : {{ compose_ver.stdout }}
+          Jenkins URL          : http://{{ ansible_host }}:8080
+          Jenkins Password     : {{ jenkins_password.stdout }}
+          Frontend URL         : http://{{ ansible_host }}
+          Backend URL          : http://{{ ansible_host }}:5000
           ============================================
-          ✅ Jenkins can run docker commands!
-          ✅ Frontend container is running on port 3000
-          ✅ Backend container is running on port 5000
+          ✅ Frontend container running on port 80
+          ✅ Backend container running on port 5000
+          ✅ Jenkins ready
           ============================================
