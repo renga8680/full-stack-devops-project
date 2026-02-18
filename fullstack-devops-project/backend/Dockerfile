@@ -16,7 +16,7 @@ COPY . .
 
 EXPOSE 5000
 
-HEALTHCHECK --interval=15s --timeout=5s --start-period=20s --retries=5 \
+HEALTHCHECK --interval=20s --timeout=5s --start-period=40s --retries=5 \
   CMD node -e "require('http').get('http://127.0.0.1:5000/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)}).on('error', () => process.exit(1))"
 
 CMD ["npm", "start"]
