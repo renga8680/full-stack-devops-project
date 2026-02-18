@@ -23,7 +23,7 @@
         state: present
 
     # ----------------------------------------
-    # PART 2: Install Docker
+    # PART 2: Install Docker on VM
     # ----------------------------------------
     - name: Install Docker
       shell: curl -fsSL https://get.docker.com | sh
@@ -52,15 +52,15 @@
         msg: "✅ {{ docker_ver.stdout }}"
 
     # ----------------------------------------
-    # PART 3: Install Docker Compose
+    # PART 3: Install Docker Compose on VM
     # ----------------------------------------
-    - name: Install Docker Compose
+    - name: Install Docker Compose on VM
       get_url:
         url: "https://github.com/docker/compose/releases/download/v2.24.0/docker-compose-linux-x86_64"
         dest: /usr/local/bin/docker-compose
         mode: '0755'
 
-    - name: Verify Docker Compose
+    - name: Verify Docker Compose on VM
       command: docker-compose --version
       register: compose_ver
 
@@ -95,7 +95,30 @@
       wait_for:
         timeout: 60
 
-    - name: Install docker-compose inside Jenkins
+    # ----------------------------------------
+    # PART 5: Install Docker INSIDE Jenkins Container
+    # ----------------------------------------
+    - name: Install Docker CLI inside Jenkins container
+      shell: |
+        docker exec -u root jenkins bash -c "
+          apt-get update &&
+          apt-get install -y docker.io
+        "
+      args:
+        executable: /bin/bash
+
+    - name: Verify Docker inside Jenkins
+      shell: docker exec jenkins docker --version
+      register: jenkins_docker_ver
+
+    - name: Show Docker version inside Jenkins
+      debug:
+        msg: "✅ Jenkins Docker: {{ jenkins_docker_ver.stdout }}"
+
+    # ----------------------------------------
+    # PART 6: Install Docker Compose INSIDE Jenkins Container
+    # ----------------------------------------
+    - name: Install Docker Compose inside Jenkins container
       shell: |
         docker exec -u root jenkins bash -c "
           curl -L https://github.com/docker/compose/releases/download/v2.24.0/docker-compose-linux-x86_64 -o /usr/local/bin/docker-compose &&
@@ -104,6 +127,33 @@
       args:
         executable: /bin/bash
 
+    - name: Verify Docker Compose inside Jenkins
+      shell: docker exec jenkins docker-compose --version
+      register: jenkins_compose_ver
+
+    - name: Show Docker Compose version inside Jenkins
+      debug:
+        msg: "✅ Jenkins Docker Compose: {{ jenkins_compose_ver.stdout }}"
+
+    # ----------------------------------------
+    # PART 7: Fix Docker Socket Permissions
+    # ----------------------------------------
+    - name: Fix Docker socket permissions
+      file:
+        path: /var/run/docker.sock
+        mode: '0666'
+
+    - name: Verify Jenkins can access Docker
+      shell: docker exec jenkins docker ps
+      register: jenkins_docker_test
+
+    - name: Show Docker access test
+      debug:
+        msg: "✅ Jenkins can access Docker!"
+
+    # ----------------------------------------
+    # PART 8: Get Jenkins Password
+    # ----------------------------------------
     - name: Get Jenkins password
       shell: docker exec jenkins cat /var/jenkins_home/secrets/initialAdminPassword
       register: jenkins_password
@@ -112,7 +162,7 @@
       until: jenkins_password.rc == 0
 
     # ----------------------------------------
-    # PART 5: Create App Directory
+    # PART 9: Create App Directory
     # ----------------------------------------
     - name: Create app directory
       file:
@@ -122,21 +172,47 @@
         owner: azureuser
 
     # ----------------------------------------
-    # PART 6: Final Summary
+    # PART 10: Final Summary
     # ----------------------------------------
     - name: Final Summary
       debug:
         msg:
           - "============================================"
-          - "✅ ALL DONE!"
+          - "✅ SETUP COMPLETE!"
           - "============================================"
-          - "Docker        : {{ docker_ver.stdout }}"
-          - "Docker Compose: {{ compose_ver.stdout }}"
-          - "Jenkins URL   : http://20.211.96.17:8080"
-          - "Jenkins PWD   : {{ jenkins_password.stdout }}"
+          - "VM Docker           : {{ docker_ver.stdout }}"
+          - "VM Docker Compose   : {{ compose_ver.stdout }}"
+          - "Jenkins Docker      : {{ jenkins_docker_ver.stdout }}"
+          - "Jenkins Docker Compose: {{ jenkins_compose_ver.stdout }}"
+          - "Jenkins URL         : http://{{ ansible_host }}:8080"
+          - "Jenkins Password    : {{ jenkins_password.stdout }}"
           - "============================================"
-          - "NEXT: Open Jenkins URL in browser"
-          - "NEXT: Paste password to login"
-          - "NEXT: Install suggested plugins"
-          - "NEXT: Create pipeline job"
+          - "✅ Jenkins can run docker commands!"
+          - "✅ Jenkins can run docker-compose commands!"
           - "============================================"
+```
+
+## What This Playbook Does:
+
+### On the VM:
+1. ✅ Installs Docker
+2. ✅ Installs Docker Compose
+
+### Inside Jenkins Container:
+3. ✅ Installs Docker CLI (so `docker` command works)
+4. ✅ Installs Docker Compose (so `docker-compose` command works)
+5. ✅ Fixes permissions (so Jenkins can access Docker socket)
+6. ✅ Verifies both work!
+
+---
+
+## After Running This Playbook:
+
+**You'll see output like:**
+```
+✅ VM Docker           : Docker version 24.0.7
+✅ VM Docker Compose   : Docker Compose version v2.24.0
+✅ Jenkins Docker      : Docker version 24.0.7
+✅ Jenkins Docker Compose: Docker Compose version v2.24.0
+✅ Jenkins can run docker commands!
+✅ Jenkins can run docker-compose commands!
