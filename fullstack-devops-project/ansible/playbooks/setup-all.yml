@@ -176,43 +176,17 @@
     # ----------------------------------------
     - name: Final Summary
       debug:
-        msg:
-          - "============================================"
-          - "✅ SETUP COMPLETE!"
-          - "============================================"
-          - "VM Docker           : {{ docker_ver.stdout }}"
-          - "VM Docker Compose   : {{ compose_ver.stdout }}"
-          - "Jenkins Docker      : {{ jenkins_docker_ver.stdout }}"
-          - "Jenkins Docker Compose: {{ jenkins_compose_ver.stdout }}"
-          - "Jenkins URL         : http://{{ ansible_host }}:8080"
-          - "Jenkins Password    : {{ jenkins_password.stdout }}"
-          - "============================================"
-          - "✅ Jenkins can run docker commands!"
-          - "✅ Jenkins can run docker-compose commands!"
-          - "============================================"
-```
-
-## What This Playbook Does:
-
-### On the VM:
-1. ✅ Installs Docker
-2. ✅ Installs Docker Compose
-
-### Inside Jenkins Container:
-3. ✅ Installs Docker CLI (so `docker` command works)
-4. ✅ Installs Docker Compose (so `docker-compose` command works)
-5. ✅ Fixes permissions (so Jenkins can access Docker socket)
-6. ✅ Verifies both work!
-
----
-
-## After Running This Playbook:
-
-**You'll see output like:**
-```
-✅ VM Docker           : Docker version 24.0.7
-✅ VM Docker Compose   : Docker Compose version v2.24.0
-✅ Jenkins Docker      : Docker version 24.0.7
-✅ Jenkins Docker Compose: Docker Compose version v2.24.0
-✅ Jenkins can run docker commands!
-✅ Jenkins can run docker-compose commands!
+        msg: |
+          ============================================
+          ✅ SETUP COMPLETE!
+          ============================================
+          VM Docker           : {{ docker_ver.stdout }}
+          VM Docker Compose   : {{ compose_ver.stdout }}
+          Jenkins Docker      : {{ jenkins_docker_ver.stdout }}
+          Jenkins Docker Compose: {{ jenkins_compose_ver.stdout }}
+          Jenkins URL         : http://{{ ansible_host }}:8080
+          Jenkins Password    : {{ jenkins_password.stdout }}
+          ============================================
+          ✅ Jenkins can run docker commands!
+          ✅ Jenkins can run docker-compose commands!
+          ============================================
