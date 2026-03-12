@@ -34,7 +34,7 @@ pipeline {
 
         stage('Stop Old Containers') {
             steps {
-                echo '🛑 Stopping old containers (if any)...'
+                echo '🛑 Stopping old containers...'
                 dir("${PROJECT_DIR}") {
                     sh 'docker-compose down || true'
                 }
@@ -50,31 +50,55 @@ pipeline {
             }
         }
 
-        stage('Verify Deployment') {
+        stage('Verify Containers Running') {
             steps {
-                echo '⏳ Waiting for services to initialize...'
-                sh 'sleep 40'
-
-                echo '📦 Running containers:'
+                echo '📦 Checking running containers...'
                 sh 'docker ps'
+            }
+        }
 
-                echo '🩺 Performing backend health check...'
+        stage('Wait For Services') {
+            steps {
+                echo '⏳ Waiting for containers to start...'
+                sh 'sleep 60'
+            }
+        }
+
+        stage('Backend Health Check') {
+            steps {
+                echo '🩺 Checking backend health...'
 
                 sh '''
                 i=1
-                while [ $i -le 10 ]
+                while [ $i -le 15 ]
                 do
-                    if curl -f http://localhost:5000/api/health; then
-                        echo "✅ Backend is healthy!"
-                        exit 0
-                    fi
-                    echo "⌛ Attempt $i/10 failed. Retrying in 5 seconds..."
-                    sleep 5
-                    i=$((i+1))
+                  if curl -f http://localhost:5000/api/health > /dev/null 2>&1; then
+                      echo "✅ Backend is healthy!"
+                      exit 0
+                  fi
+
+                  echo "⌛ Attempt $i/15 failed. Retrying in 5 seconds..."
+                  sleep 5
+                  i=$((i+1))
                 done
 
-                echo "❌ Backend health check FAILED after multiple attempts."
+                echo "❌ Backend health check FAILED."
                 exit 1
+                '''
+            }
+        }
+
+        stage('Frontend Health Check') {
+            steps {
+                echo '🩺 Checking frontend health...'
+
+                sh '''
+                if curl -f http://localhost > /dev/null 2>&1; then
+                    echo "✅ Frontend is healthy!"
+                else
+                    echo "❌ Frontend not responding!"
+                    exit 1
+                fi
                 '''
             }
         }
@@ -94,7 +118,8 @@ pipeline {
         }
 
         failure {
-            echo '❌ Deployment failed! Displaying container logs...'
+            echo '❌ Deployment failed! Showing container logs...'
+
             dir("${PROJECT_DIR}") {
                 sh 'docker-compose logs || true'
             }
