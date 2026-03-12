@@ -41,6 +41,15 @@ pipeline {
             }
         }
 
+        stage('Cleanup Old Containers') {
+            steps {
+            sh '''
+            docker rm -f backend || true
+            docker rm -f frontend || true
+            '''
+            }
+          }
+
         stage('Deploy Application') {
             steps {
                 echo '🚀 Starting containers...'
