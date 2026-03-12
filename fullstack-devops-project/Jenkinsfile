@@ -57,31 +57,31 @@ pipeline {
                 echo '📦 Running containers:'
                 sh 'docker ps'
                 echo '🩺 Performing backend health check...'
-                sh '''
-                    for i in {1..10}; do
-                        if wget -q --spider http://localhost:5000; then
+                sh """
+                    for i in \$(seq 1 10); do
+                        if wget -q --spider http://${SERVER_IP}:5000; then
                             echo "✅ Backend is healthy!"
                             exit 0
                         fi
-                        echo "⌛ Attempt $i/10 failed. Retrying in 5 seconds..."
+                        echo "⌛ Attempt \$i/10 failed. Retrying in 5 seconds..."
                         sleep 5
                     done
                     echo "❌ Backend health check FAILED after multiple attempts."
                     exit 1
-                '''
+                """
                 echo '🩺 Performing frontend health check...'
-                sh '''
-                    for i in {1..10}; do
-                        if wget -q --spider http://localhost; then
+                sh """
+                    for i in \$(seq 1 10); do
+                        if wget -q --spider http://${SERVER_IP}; then
                             echo "✅ Frontend is healthy!"
                             exit 0
                         fi
-                        echo "⌛ Attempt $i/10 failed. Retrying in 5 seconds..."
+                        echo "⌛ Attempt \$i/10 failed. Retrying in 5 seconds..."
                         sleep 5
                     done
                     echo "❌ Frontend health check FAILED after multiple attempts."
                     exit 1
-                '''
+                """
             }
         }
     }
