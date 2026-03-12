@@ -5,8 +5,8 @@
 
   vars:
     app_dir: /opt/fullstack-app
-    frontend_dir: /home/azureuser/full-stack-devops-project/fullstack-devops-project/frontend
-    backend_dir: /home/azureuser/full-stack-devops-project/fullstack-devops-project/backend
+    frontend_dir: /home/ubuntu/full-stack-devops-project/fullstack-devops-project/frontend
+    backend_dir: /home/ubuntu/full-stack-devops-project/fullstack-devops-project/backend
 
   tasks:
 
