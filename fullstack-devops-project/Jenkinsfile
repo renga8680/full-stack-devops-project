@@ -38,6 +38,8 @@ pipeline {
                 dir("${PROJECT_DIR}") {
                     sh 'docker-compose down || true'
                 }
+                sh 'docker rm -f backend || true'
+                sh 'docker rm -f frontend || true'
             }
         }
 
