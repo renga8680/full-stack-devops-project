@@ -15,6 +15,6 @@ spec:
     spec:
       containers:
       - name: frontend
-        image: fullstack-frontend:latest
+        image: renga8680/frontend:latest
         ports:
         - containerPort: 80
