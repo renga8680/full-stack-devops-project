@@ -1,20 +1,16 @@
 pipeline {
     agent any
-
     environment {
         SERVER_IP = "3.110.49.58"
         PROJECT_DIR = "fullstack-devops-project"
     }
-
     stages {
-
         stage('Checkout Code') {
             steps {
                 echo '📥 Pulling code from GitHub...'
                 checkout scm
             }
         }
-
         stage('Verify Tools') {
             steps {
                 echo '🔍 Checking Docker tools...'
@@ -22,25 +18,30 @@ pipeline {
                 sh 'docker-compose --version'
             }
         }
-
         stage('Build Images') {
             steps {
                 echo '🔨 Building Docker images...'
                 dir("${PROJECT_DIR}") {
-                    sh 'docker-compose build --no-cache'
+                    sh 'docker-compose build'
                 }
             }
         }
-
         stage('Stop Old Containers') {
             steps {
-                echo '🛑 Stopping old containers...'
+                echo '🛑 Stopping old containers (if any)...'
                 dir("${PROJECT_DIR}") {
                     sh 'docker-compose down || true'
                 }
             }
         }
-
+        stage('Cleanup Old Containers') {
+            steps {
+                sh '''
+                    docker rm -f backend || true
+                    docker rm -f frontend || true
+                '''
+            }
+        }
         stage('Deploy Application') {
             steps {
                 echo '🚀 Starting containers...'
@@ -49,82 +50,59 @@ pipeline {
                 }
             }
         }
-
-        stage('Verify Containers Running') {
+        stage('Verify Deployment') {
             steps {
-                echo '📦 Checking running containers...'
+                echo '⏳ Waiting for services to initialize...'
+                sh 'sleep 20'
+                echo '📦 Running containers:'
                 sh 'docker ps'
-            }
-        }
-
-        stage('Wait For Services') {
-            steps {
-                echo '⏳ Waiting for containers to start...'
-                sh 'sleep 60'
-            }
-        }
-
-        stage('Backend Health Check') {
-            steps {
-                echo '🩺 Checking backend health...'
-
+                echo '🩺 Performing backend health check...'
                 sh '''
-                i=1
-                while [ $i -le 15 ]
-                do
-                  if curl -f http://localhost:5000/api/health > /dev/null 2>&1; then
-                      echo "✅ Backend is healthy!"
-                      exit 0
-                  fi
-
-                  echo "⌛ Attempt $i/15 failed. Retrying in 5 seconds..."
-                  sleep 5
-                  i=$((i+1))
-                done
-
-                echo "❌ Backend health check FAILED."
-                exit 1
-                '''
-            }
-        }
-
-        stage('Frontend Health Check') {
-            steps {
-                echo '🩺 Checking frontend health...'
-
-                sh '''
-                if curl -f http://localhost > /dev/null 2>&1; then
-                    echo "✅ Frontend is healthy!"
-                else
-                    echo "❌ Frontend not responding!"
+                    for i in {1..10}; do
+                        if wget -q --spider http://localhost:5000; then
+                            echo "✅ Backend is healthy!"
+                            exit 0
+                        fi
+                        echo "⌛ Attempt $i/10 failed. Retrying in 5 seconds..."
+                        sleep 5
+                    done
+                    echo "❌ Backend health check FAILED after multiple attempts."
                     exit 1
-                fi
+                '''
+                echo '🩺 Performing frontend health check...'
+                sh '''
+                    for i in {1..10}; do
+                        if wget -q --spider http://localhost; then
+                            echo "✅ Frontend is healthy!"
+                            exit 0
+                        fi
+                        echo "⌛ Attempt $i/10 failed. Retrying in 5 seconds..."
+                        sleep 5
+                    done
+                    echo "❌ Frontend health check FAILED after multiple attempts."
+                    exit 1
                 '''
             }
         }
     }
-
     post {
-
         success {
             echo """
             ✅ DEPLOYMENT SUCCESSFUL!
             ==========================================
             Frontend : http://${SERVER_IP}
-            Backend  : http://${SERVER_IP}:5000/api/health
+            Backend  : http://${SERVER_IP}:5000
             Jenkins  : http://${SERVER_IP}:8080
             ==========================================
             """
         }
-
         failure {
             echo '❌ Deployment failed! Showing container logs...'
-
             dir("${PROJECT_DIR}") {
-                sh 'docker-compose logs || true'
+                sh 'docker-compose logs frontend || true'
+                sh 'docker-compose logs backend || true'
             }
         }
-
         always {
             echo '🧹 Cleaning unused Docker resources...'
             sh 'docker system prune -f || true'
