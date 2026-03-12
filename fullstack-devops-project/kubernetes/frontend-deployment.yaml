@@ -15,6 +15,6 @@ spec:
     spec:
       containers:
       - name: frontend
-        image: renga8680/frontend-updated:latest
+        image: renga8680/frontend-updated1:latest
         ports:
         - containerPort: 80
