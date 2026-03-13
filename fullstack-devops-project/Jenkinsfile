@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        SERVER_IP = "13.203.101.125"
+        SERVER_IP = "13.234.29.22"
         PROJECT_DIR = "fullstack-devops-project"
     }
 
